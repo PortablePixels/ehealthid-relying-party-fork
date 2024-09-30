@@ -54,7 +54,7 @@ class FederationEndpointTest {
             .appName("My App")
             .scopes(List.of("openid", "email"))
             .federationMaster(FEDMASTER)
-            .relyingPartyKeys(new JWKSet(encryptionKey))
+            .relyingPartyEncKeys(new JWKSet(encryptionKey))
             .entitySigningKeys(new JWKSet(signatureKey))
             .entitySigningKey(signatureKey)
             .ttl(Duration.ofMinutes(5))

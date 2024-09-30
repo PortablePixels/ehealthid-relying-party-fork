@@ -14,8 +14,8 @@ import java.util.Optional;
 
 public class ConfigReader {
 
-  public static final String CONFIG_FEDERATION_ENTITY_STATEMENT_JWKS_PATH =
-      "federation_es_jwks_path";
+  public static final String CONFIG_FEDERATION_ENC_JWKS_PATH = "federation_enc_jwks_path";
+  public static final String CONFIG_FEDERATION_SIG_JWKS_PATH = "federation_sig_jwks_path";
   public static final String CONFIG_BASE_URI = "base_uri";
   public static final String CONFIG_HOST = "host";
   public static final String CONFIG_PORT = "port";
@@ -42,7 +42,8 @@ public class ConfigReader {
 
   public Config read() {
 
-    var federationEntityStatementJwksPath = loadJwks(CONFIG_FEDERATION_ENTITY_STATEMENT_JWKS_PATH);
+    var federationEncJwksPath = loadJwks(CONFIG_FEDERATION_ENC_JWKS_PATH);
+    var federationSigJwksPath = loadJwks(CONFIG_FEDERATION_SIG_JWKS_PATH);
 
     var baseUri =
         configProvider
@@ -83,10 +84,11 @@ public class ConfigReader {
             .iss(baseUri)
             .appName(appName)
             .federationMaster(fedmaster)
+            .entitySigningKey(federationSigJwksPath.getKeys().get(0).toECKey())
 
             // safety, remove the private key as we don't need it here
-            .entitySigningKeys(federationEntityStatementJwksPath.toPublicJWKSet())
-            .entitySigningKey(federationEntityStatementJwksPath.getKeys().get(0).toECKey())
+            .entitySigningKeys(federationSigJwksPath.toPublicJWKSet())
+            .relyingPartyEncKeys(federationEncJwksPath)
             .ttl(entityStatementTtl)
             .scopes(getScopes())
             .redirectUris(List.of(baseUri.resolve("/auth/callback").toString()))
