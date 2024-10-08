@@ -3,7 +3,6 @@ package com.oviva.ehealthid.relyingparty;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.nimbusds.jose.jwk.JWKSet;
-import com.nimbusds.jose.jwk.source.JWKSourceBuilder;
 import com.oviva.ehealthid.auth.AuthenticationFlow;
 import com.oviva.ehealthid.fedclient.FederationMasterClientImpl;
 import com.oviva.ehealthid.fedclient.api.CachedFederationApiClient;
@@ -21,13 +20,13 @@ import com.oviva.ehealthid.relyingparty.svc.AuthService;
 import com.oviva.ehealthid.relyingparty.svc.CaffeineCodeRepo;
 import com.oviva.ehealthid.relyingparty.svc.CaffeineSessionRepo;
 import com.oviva.ehealthid.relyingparty.svc.ClientAuthenticator;
+import com.oviva.ehealthid.relyingparty.svc.ClientKeyStore;
 import com.oviva.ehealthid.relyingparty.svc.CodeRepo;
 import com.oviva.ehealthid.relyingparty.svc.KeyStore;
 import com.oviva.ehealthid.relyingparty.svc.SessionRepo;
 import com.oviva.ehealthid.relyingparty.svc.SessionRepo.Session;
 import com.oviva.ehealthid.relyingparty.svc.TokenIssuer.Code;
 import com.oviva.ehealthid.relyingparty.svc.TokenIssuerImpl;
-import com.oviva.ehealthid.relyingparty.util.DiscoveryJwkSetSource;
 import com.oviva.ehealthid.relyingparty.util.LoggingHttpClient;
 import com.oviva.ehealthid.relyingparty.ws.App;
 import com.oviva.ehealthid.relyingparty.ws.HealthEndpoint;
@@ -118,6 +117,7 @@ public class Main implements AutoCloseable {
     var config = configReader.read();
 
     var keyStore = new KeyStore();
+    var clientKeyStore = new ClientKeyStore();
     var meterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
     var codeRepo = buildCodeRepo(config.codeStoreConfig(), meterRegistry);
     var tokenIssuer = new TokenIssuerImpl(config.baseUri(), keyStore, codeRepo);
@@ -139,16 +139,18 @@ public class Main implements AutoCloseable {
             config.federation().relyingPartyEncKeys(),
             httpClient);
 
-    var discoveryHttpClient =
-        HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+    // var discoveryHttpClient =
+    //      HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
-    var jwkSource =
-        JWKSourceBuilder.create(
-                new DiscoveryJwkSetSource<>(discoveryHttpClient, config.idpDiscoveryUri()))
-            .refreshAheadCache(true)
-            .build();
+    //        var jwkSource =
+    //      JWKSourceBuilder.create(
+    //            new DiscoveryJwkSetSource<>(discoveryHttpClient, config.idpDiscoveryUri()))
+    //      .refreshAheadCache(true)
+    //    .build();
 
-    var clientAuthenticator = new ClientAuthenticator(jwkSource, config.baseUri());
+    var clientSigningjwkSource = new ClientKeyStore.StaticJwkSource<>(clientKeyStore.signingKey());
+
+    var clientAuthenticator = new ClientAuthenticator(clientSigningjwkSource, config.baseUri());
 
     var authService =
         new AuthService(
