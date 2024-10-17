@@ -4,6 +4,7 @@ import com.nimbusds.jose.jwk.JWKSet;
 import com.oviva.ehealthid.relyingparty.cfg.ConfigProvider;
 import com.oviva.ehealthid.relyingparty.cfg.RelyingPartyConfig;
 import com.oviva.ehealthid.relyingparty.fed.FederationConfig;
+import com.oviva.ehealthid.relyingparty.util.KeyGenerator;
 import com.oviva.ehealthid.relyingparty.util.Strings;
 import com.oviva.ehealthid.util.JwksUtils;
 import java.net.URI;
@@ -78,16 +79,19 @@ public class ConfigReader {
     var entityStatementTtl =
         configProvider.get(CONFIG_ES_TTL).map(Duration::parse).orElse(Duration.ofHours(1));
 
+    var signingKey = federationSigJwksPath.getKeys().get(0).toECKey();
+    var signingKeyWithCert = KeyGenerator.generateSigningKeyWithCertificate(baseUri, signingKey);
+
     var federationConfig =
         FederationConfig.create()
             .sub(baseUri)
             .iss(baseUri)
             .appName(appName)
             .federationMaster(fedmaster)
-            .entitySigningKey(federationSigJwksPath.getKeys().get(0).toECKey())
+            .entitySigningKey(signingKeyWithCert.toECKey())
 
             // safety, remove the private key as we don't need it here
-            .entitySigningKeys(federationSigJwksPath.toPublicJWKSet())
+            .entitySigningKeys(new JWKSet(signingKeyWithCert).toPublicJWKSet())
             .relyingPartyEncKeys(federationEncJwksPath)
             .ttl(entityStatementTtl)
             .scopes(getScopes())

@@ -24,14 +24,9 @@ public class KeyGenerator {
   private KeyGenerator() {}
 
   @NonNull
-  public static JWK generateSigningKeyWithCertificate(@NonNull URI issuer) {
+  public static JWK generateSigningKeyWithCertificate(@NonNull URI issuer, ECKey key) {
 
     try {
-      var key =
-          new ECKeyGenerator(Curve.P_256)
-              .keyUse(KeyUse.SIGNATURE)
-              .keyIDFromThumbprint(true)
-              .generate();
 
       var now = Instant.now();
       var nbf = now.minus(Duration.ofHours(3));

@@ -33,6 +33,7 @@ import com.oviva.ehealthid.relyingparty.util.LoggingHttpClient;
 import com.oviva.ehealthid.relyingparty.ws.App;
 import com.oviva.ehealthid.relyingparty.ws.HealthEndpoint;
 import com.oviva.ehealthid.relyingparty.ws.MetricsEndpoint;
+import com.oviva.ehealthid.util.TlsContext;
 import io.micrometer.core.instrument.binder.cache.CaffeineCacheMetrics;
 import io.micrometer.prometheusmetrics.PrometheusConfig;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
@@ -126,12 +127,12 @@ public class Main implements AutoCloseable {
     var sessionRepo = buildSessionRepo(config.sessionStore(), meterRegistry);
 
     // the relying party signing key is for mTLS
-    // var sslContext = TlsContext.fromClientCertificate(config.federation().entitySigningKey());
+    var sslContext = TlsContext.fromClientCertificate(config.federation().entitySigningKey());
 
     var httpClient =
         HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
-            //     .sslContext(sslContext)
+            .sslContext(sslContext)
             .build();
 
     var authFlow =
