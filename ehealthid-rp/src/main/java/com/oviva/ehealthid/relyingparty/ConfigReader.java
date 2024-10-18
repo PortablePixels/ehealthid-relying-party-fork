@@ -80,6 +80,8 @@ public class ConfigReader {
         configProvider.get(CONFIG_ES_TTL).map(Duration::parse).orElse(Duration.ofHours(1));
 
     var signingKey = federationSigJwksPath.getKeys().get(0).toECKey();
+    var encKey = federationEncJwksPath.getKeys().get(0);
+
     var signingKeyWithCert = KeyGenerator.generateSigningKeyWithCertificate(baseUri, signingKey);
 
     var federationConfig =
@@ -92,7 +94,7 @@ public class ConfigReader {
 
             // safety, remove the private key as we don't need it here
             .entitySigningKeys(new JWKSet(signingKeyWithCert).toPublicJWKSet())
-            .relyingPartyEncKeys(federationEncJwksPath)
+            .relyingPartyEncKeys(new JWKSet(List.of(signingKeyWithCert, encKey)).toPublicJWKSet())
             .ttl(entityStatementTtl)
             .scopes(getScopes())
             .redirectUris(List.of(baseUri.resolve("/auth/callback").toString()))
