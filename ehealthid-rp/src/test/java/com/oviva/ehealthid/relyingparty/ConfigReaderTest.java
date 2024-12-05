@@ -49,7 +49,7 @@ class ConfigReaderTest {
     assertNotNull(config.federation().entitySigningKeys().getKeyByKeyId("test-sig"));
 
     // these will be generated
-    assertNull(config.federation().relyingPartyEncKeys());
+    assertNull(config.federation().relyingPartyKeys());
   }
 
   @Test

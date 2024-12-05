@@ -90,11 +90,12 @@ public class ConfigReader {
             .iss(baseUri)
             .appName(appName)
             .federationMaster(fedmaster)
-            .entitySigningKey(signingKeyWithCert.toECKey())
+            .entitySigningKey(signingKey)
 
             // safety, remove the private key as we don't need it here
-            .entitySigningKeys(new JWKSet(signingKeyWithCert).toPublicJWKSet())
-            .relyingPartyEncKeys(new JWKSet(List.of(signingKeyWithCert, encKey)).toPublicJWKSet())
+            .entitySigningKeys(new JWKSet(signingKey).toPublicJWKSet())
+            .relyingPartySigningKey(signingKeyWithCert.toECKey())
+            .relyingPartyKeys(new JWKSet(List.of(signingKeyWithCert, encKey)))
             .ttl(entityStatementTtl)
             .scopes(getScopes())
             .redirectUris(List.of(baseUri.resolve("/auth/callback").toString()))

@@ -127,7 +127,7 @@ public class Main implements AutoCloseable {
     var sessionRepo = buildSessionRepo(config.sessionStore(), meterRegistry);
 
     // the relying party signing key is for mTLS
-    var sslContext = TlsContext.fromClientCertificate(config.federation().entitySigningKey());
+    var sslContext = TlsContext.fromClientCertificate(config.federation().relyingPartySigningKey());
 
     var httpClient =
         HttpClient.newBuilder()
@@ -139,7 +139,7 @@ public class Main implements AutoCloseable {
         buildAuthFlow(
             config.baseUri(),
             config.federation().federationMaster(),
-            config.federation().relyingPartyEncKeys(),
+            config.federation().relyingPartyKeys(),
             httpClient);
 
     var discoveryHttpClient =
