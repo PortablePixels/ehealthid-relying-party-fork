@@ -46,6 +46,7 @@ public class FederationEndpoint {
                     .openIdRelyingParty(
                         OpenIdRelyingParty.create()
                             .clientName(federationConfig.appName())
+                            .organizationName(federationConfig.appName())
                             .jwks(relyingPartyJwks)
                             .responseTypes(List.of("code"))
                             .grantTypes(List.of("authorization_code"))
