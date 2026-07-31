@@ -1,0 +1,14 @@
+# secrets / build artifacts
+target/
+**/target/
+*.pem
+*.p12
+*.jks
+.DS_Store
+# tests
+**/src/test/**
+**/*Test.java
+**/*IT.java
+# binary/assets
+keycloak_config.png
+reports/

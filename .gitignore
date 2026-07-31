@@ -11,3 +11,9 @@ federation_registration_form.xml
 dependency-reduced-pom.xml
 .DS_Store
 logs.json
+
+# Understand-Anything scratch (graph itself is committed)
+.ua/intermediate/
+.ua/tmp/
+.ua/diff-overlay.json
+.ua/.trash-*
