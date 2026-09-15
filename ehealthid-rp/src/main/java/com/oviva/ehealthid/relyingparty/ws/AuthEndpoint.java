@@ -117,7 +117,7 @@ public class AuthEndpoint {
         .secure(true)
         .httpOnly(true)
         .sameSite(SameSite.LAX)
-        .maxAge(-1) // session scoped
+        .maxAge(600) // retain the correlation cookie for a bounded authentication window
         .path("/auth")
         .build();
   }

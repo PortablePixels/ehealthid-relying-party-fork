@@ -1,7 +1,9 @@
 package com.oviva.ehealthid.relyingparty.ws;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -100,6 +102,12 @@ class AuthEndpointTest {
 
       var sessionCookie = res.getCookies().get("session_id");
       assertEquals(sessionId, sessionCookie.getValue());
+      assertEquals(600, sessionCookie.getMaxAge());
+      assertEquals("/auth", sessionCookie.getPath());
+      assertNull(sessionCookie.getDomain());
+      assertTrue(sessionCookie.isSecure());
+      assertTrue(sessionCookie.isHttpOnly());
+      assertEquals(jakarta.ws.rs.core.NewCookie.SameSite.LAX, sessionCookie.getSameSite());
     }
   }
 
@@ -138,6 +146,12 @@ class AuthEndpointTest {
 
       var sessionCookie = res.getCookies().get("session_id");
       assertEquals(sessionId, sessionCookie.getValue());
+      assertEquals(600, sessionCookie.getMaxAge());
+      assertEquals("/auth", sessionCookie.getPath());
+      assertNull(sessionCookie.getDomain());
+      assertTrue(sessionCookie.isSecure());
+      assertTrue(sessionCookie.isHttpOnly());
+      assertEquals(jakarta.ws.rs.core.NewCookie.SameSite.LAX, sessionCookie.getSameSite());
     }
   }
 
