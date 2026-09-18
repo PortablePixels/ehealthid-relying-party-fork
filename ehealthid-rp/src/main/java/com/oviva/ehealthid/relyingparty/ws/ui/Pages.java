@@ -37,9 +37,23 @@ public class Pages {
   }
 
   public String jumpToApp(URI destination, Locale locale) {
+    return jumpToApp(destination, false, locale);
+  }
 
+  public String jumpToApp(URI destination, boolean awaitRelay, Locale locale) {
+
+    var templateData = new HashMap<String, Object>();
+    templateData.put("destination", destination.toString());
+    if (awaitRelay) {
+      templateData.put("awaitRelay", true);
+    }
+
+    return renderer.render("jump-to-app.html.mustache", templateData, locale);
+  }
+
+  public String returnToApp(URI appLink, Locale locale) {
     return renderer.render(
-        "jump-to-app.html.mustache", Map.of("destination", destination.toString()), locale);
+        "return-to-app.html.mustache", Map.of("appLink", appLink.toString()), locale);
   }
 
   public String success(URI redirectUri, Locale locale) {

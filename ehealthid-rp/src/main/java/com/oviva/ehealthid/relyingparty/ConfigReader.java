@@ -24,6 +24,7 @@ public class ConfigReader {
   public static final String CONFIG_ES_TTL = "es_ttl";
   public static final String CONFIG_APP_NAME = "app_name";
   public static final String CONFIG_APP_URI = "app_uri";
+  public static final String CONFIG_APP_RELAY_URI = "app_relay_uri";
   public static final String CONFIG_SCOPES = "scopes";
 
   public static final String CONFIG_SESSION_STORE_TTL = "session_store_ttl";
@@ -71,6 +72,7 @@ public class ConfigReader {
             .orElseThrow(() -> new IllegalArgumentException("missing 'app_name' configuration"));
 
     var appUri = configProvider.get(CONFIG_APP_URI).map(URI::create).orElse(null);
+    var appRelayUri = configProvider.get(CONFIG_APP_RELAY_URI).map(URI::create).orElse(null);
 
     var entityStatementTtl =
         configProvider.get(CONFIG_ES_TTL).map(Duration::parse).orElse(Duration.ofHours(1));
@@ -101,7 +103,8 @@ public class ConfigReader {
         idpDiscoveryUri,
         appUri,
         sessionStoreConfig(),
-        codeStoreConfig());
+        codeStoreConfig(),
+        appRelayUri);
   }
 
   private SessionStoreConfig sessionStoreConfig() {
@@ -158,7 +161,8 @@ public class ConfigReader {
       URI idpDiscoveryUri,
       URI appUri,
       SessionStoreConfig sessionStore,
-      CodeStoreConfig codeStoreConfig) {}
+      CodeStoreConfig codeStoreConfig,
+      URI appRelayUri) {}
 
   public record SessionStoreConfig(Duration ttl, int maxEntries) {}
 

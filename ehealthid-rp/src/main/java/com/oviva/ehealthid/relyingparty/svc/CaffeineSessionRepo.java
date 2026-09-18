@@ -3,6 +3,8 @@ package com.oviva.ehealthid.relyingparty.svc;
 import com.github.benmanes.caffeine.cache.Cache;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 
@@ -33,6 +35,23 @@ public class CaffeineSessionRepo implements SessionRepo {
       return null;
     }
     return session;
+  }
+
+  @Nullable
+  @Override
+  public Session findByUpstreamState(@NonNull String upstreamState) {
+    if (upstreamState.isBlank()) {
+      return null;
+    }
+    var expected = upstreamState.getBytes(StandardCharsets.UTF_8);
+    for (var session : store.asMap().values()) {
+      var candidate = session.upstreamState();
+      if (candidate != null
+          && MessageDigest.isEqual(expected, candidate.getBytes(StandardCharsets.UTF_8))) {
+        return load(session.id());
+      }
+    }
+    return null;
   }
 
   @Nullable

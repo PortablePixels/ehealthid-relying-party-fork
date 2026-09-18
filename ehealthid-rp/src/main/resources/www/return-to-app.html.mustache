@@ -1,0 +1,16 @@
+{{<layout.html.mustache}}
+{{$body}}
+<div class="container">
+  <div class="heading">
+    <h1 class="title">{{#trans}}returnToApp.title{{/trans}}</h1>
+    <p class="text">{{#trans}}returnToApp.description{{/trans}}</p>
+  </div>
+
+  <div class="actions">
+    <a href="{{appLink}}" class="primary-button">
+      {{#trans}}continue{{/trans}}
+    </a>
+  </div>
+</div>
+{{/body}}
+{{/layout.html.mustache}}

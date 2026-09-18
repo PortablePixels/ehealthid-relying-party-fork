@@ -12,5 +12,30 @@
     </a>
   </div>
 </div>
+{{#awaitRelay}}
+<script>
+  // The insurer app may return to another browser. The native app then relays the callback
+  // and this page, which holds the sign-in session, continues.
+  (function () {
+    var done = false;
+    function check() {
+      if (done || document.visibilityState !== 'visible') {
+        return;
+      }
+      fetch('/auth/relay-status', {credentials: 'same-origin', cache: 'no-store'})
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (body) {
+          if (body && body.complete && !done) {
+            done = true;
+            window.location.replace('/auth/continue');
+          }
+        })
+        .catch(function () {});
+    }
+    document.addEventListener('visibilitychange', check);
+    setInterval(check, 2000);
+  })();
+</script>
+{{/awaitRelay}}
 {{/body}}
 {{/layout.html.mustache}}

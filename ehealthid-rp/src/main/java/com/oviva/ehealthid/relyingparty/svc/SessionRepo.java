@@ -1,9 +1,11 @@
 package com.oviva.ehealthid.relyingparty.svc;
 
+import com.oviva.ehealthid.auth.IdTokenJWS;
 import com.oviva.ehealthid.auth.steps.SelectSectoralIdpStep;
 import com.oviva.ehealthid.auth.steps.TrustedSectoralIdpStep;
 import com.oviva.ehealthid.relyingparty.util.IdGenerator;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import java.net.URI;
 import java.time.Instant;
 
@@ -15,6 +17,15 @@ public interface SessionRepo {
 
   Session remove(@NonNull String sessionId);
 
+  /**
+   * Finds the session that sent {@code upstreamState} to the sectoral IdP. Used only when the
+   * callback reaches a different browser than the one holding the session cookie.
+   */
+  @Nullable
+  default Session findByUpstreamState(@NonNull String upstreamState) {
+    return null;
+  }
+
   record Session(
       String id,
       Instant createdAt,
@@ -24,7 +35,33 @@ public interface SessionRepo {
       String clientId,
       String codeVerifier,
       SelectSectoralIdpStep selectSectoralIdpStep,
-      TrustedSectoralIdpStep trustedSectoralIdpStep) {
+      TrustedSectoralIdpStep trustedSectoralIdpStep,
+      String upstreamState,
+      IdTokenJWS relayedIdToken) {
+
+    public Session(
+        String id,
+        Instant createdAt,
+        String state,
+        String nonce,
+        URI redirectUri,
+        String clientId,
+        String codeVerifier,
+        SelectSectoralIdpStep selectSectoralIdpStep,
+        TrustedSectoralIdpStep trustedSectoralIdpStep) {
+      this(
+          id,
+          createdAt,
+          state,
+          nonce,
+          redirectUri,
+          clientId,
+          codeVerifier,
+          selectSectoralIdpStep,
+          trustedSectoralIdpStep,
+          null,
+          null);
+    }
 
     public static Builder create() {
       return new Builder();
@@ -40,7 +77,9 @@ public interface SessionRepo {
           .clientId(clientId)
           .codeVerifier(codeVerifier)
           .selectSectoralIdpStep(selectSectoralIdpStep)
-          .trustedSectoralIdpStep(trustedSectoralIdpStep);
+          .trustedSectoralIdpStep(trustedSectoralIdpStep)
+          .upstreamState(upstreamState)
+          .relayedIdToken(relayedIdToken);
     }
 
     public static final class Builder {
@@ -54,6 +93,8 @@ public interface SessionRepo {
       private String codeVerifier;
       private SelectSectoralIdpStep selectSectoralIdpStep;
       private TrustedSectoralIdpStep trustedSectoralIdpStep;
+      private String upstreamState;
+      private IdTokenJWS relayedIdToken;
 
       private Builder() {}
 
@@ -102,6 +143,16 @@ public interface SessionRepo {
         return this;
       }
 
+      public Builder upstreamState(String upstreamState) {
+        this.upstreamState = upstreamState;
+        return this;
+      }
+
+      public Builder relayedIdToken(IdTokenJWS relayedIdToken) {
+        this.relayedIdToken = relayedIdToken;
+        return this;
+      }
+
       public Session build() {
         if (id == null) {
           id = IdGenerator.generateID();
@@ -120,7 +171,9 @@ public interface SessionRepo {
             clientId,
             codeVerifier,
             selectSectoralIdpStep,
-            trustedSectoralIdpStep);
+            trustedSectoralIdpStep,
+            upstreamState,
+            relayedIdToken);
       }
     }
   }

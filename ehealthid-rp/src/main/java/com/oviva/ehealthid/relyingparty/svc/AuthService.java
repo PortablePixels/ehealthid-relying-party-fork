@@ -78,10 +78,14 @@ public class AuthService {
 
     var relyingPartyCallback = baseUri.resolve("/auth/callback");
 
+    // Our own state towards the sectoral IdP, so a callback can be matched to its session
+    // without relying on the IdP's state value.
+    var upstreamState = IdGenerator.generateID();
+
     var step1 =
         authenticationFlow.start(
             new AuthenticationFlow.Session(
-                request.state(),
+                upstreamState,
                 request.nonce(),
                 relyingPartyCallback,
                 codeChallenge,
@@ -99,6 +103,7 @@ public class AuthService {
             .clientId(request.clientId())
             .codeVerifier(verifier)
             .selectSectoralIdpStep(step1)
+            .upstreamState(upstreamState)
             .build();
 
     sessionRepo.save(session);
@@ -150,6 +155,82 @@ public class AuthService {
         .queryParam("code", issued.code())
         .queryParam("state", session.state())
         .build();
+  }
+
+  /**
+   * Returns the session awaiting a sectoral IdP callback for {@code upstreamState}, or null. A
+   * callback without the matching session cookie (e.g. the insurer app opened Safari instead of the
+   * app's sign-in session) must never complete that session here: it can only be handed to the
+   * native app, which relays it while its own sign-in is in progress.
+   */
+  @Nullable
+  public String findRelayableSessionId(@Nullable String upstreamState) {
+    var session = findAwaitingRelay(upstreamState);
+    return session == null ? null : session.id();
+  }
+
+  /**
+   * Accepts a callback relayed by the native app. The code is redeemed immediately, but the session
+   * only continues in the browser that holds its session cookie (see {@link
+   * #continueRelayed(String)}).
+   */
+  public void relayCallback(@NonNull RelayRequest request) {
+    if (request.code() == null || request.code().isBlank()) {
+      throw new ValidationException(new Message("error.invalidCallback"));
+    }
+    var session = findAwaitingRelay(request.upstreamState());
+    if (session == null) {
+      throw new ValidationException(new Message("error.invalidSession"));
+    }
+
+    var idToken =
+        session
+            .trustedSectoralIdpStep()
+            .exchangeSectoralIdpCode(request.code(), session.codeVerifier());
+
+    sessionRepo.save(session.toBuilder().relayedIdToken(idToken).build());
+  }
+
+  public boolean isRelayComplete(@Nullable String sessionId) {
+    if (sessionId == null || sessionId.isBlank()) {
+      return false;
+    }
+    var session = sessionRepo.load(sessionId);
+    return session != null && session.relayedIdToken() != null;
+  }
+
+  @NonNull
+  public URI continueRelayed(@Nullable String sessionId) {
+    var session = mustFindSession(sessionId);
+    if (session.relayedIdToken() == null) {
+      throw new ValidationException(new Message("error.invalidSession"));
+    }
+
+    session = removeSession(sessionId);
+    if (session == null || session.relayedIdToken() == null) {
+      throw new ValidationException(new Message("error.invalidSession"));
+    }
+
+    var issued = tokenIssuer.issueCode(session, session.relayedIdToken());
+
+    return UriBuilder.fromUri(session.redirectUri())
+        .queryParam("code", issued.code())
+        .queryParam("state", session.state())
+        .build();
+  }
+
+  @Nullable
+  private Session findAwaitingRelay(@Nullable String upstreamState) {
+    if (upstreamState == null || upstreamState.isBlank()) {
+      return null;
+    }
+    var session = sessionRepo.findByUpstreamState(upstreamState);
+    if (session == null
+        || session.trustedSectoralIdpStep() == null
+        || session.relayedIdToken() != null) {
+      return null;
+    }
+    return session;
   }
 
   private void validateCallbackRequest(CallbackRequest request) {
@@ -231,6 +312,8 @@ public class AuthService {
   public record SelectedIdpRequest(String sessionId, String selectedIdentityProvider) {}
 
   public record CallbackRequest(String sessionId, String code) {}
+
+  public record RelayRequest(String upstreamState, String code) {}
 
   public record AuthorizationRequest(
       String scope,
