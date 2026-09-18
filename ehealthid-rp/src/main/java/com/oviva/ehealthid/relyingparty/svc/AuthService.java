@@ -104,6 +104,7 @@ public class AuthService {
             .codeVerifier(verifier)
             .selectSectoralIdpStep(step1)
             .upstreamState(upstreamState)
+            .appRelayChallenge(validRelayChallenge(request.appRelayChallenge()))
             .build();
 
     sessionRepo.save(session);
@@ -179,7 +180,8 @@ public class AuthService {
       throw new ValidationException(new Message("error.invalidCallback"));
     }
     var session = findAwaitingRelay(request.upstreamState());
-    if (session == null) {
+    if (session == null
+        || !matchesRelayChallenge(session.appRelayChallenge(), request.appRelayVerifier())) {
       throw new ValidationException(new Message("error.invalidSession"));
     }
 
@@ -217,6 +219,27 @@ public class AuthService {
         .queryParam("code", issued.code())
         .queryParam("state", session.state())
         .build();
+  }
+
+  // Same shape as a PKCE S256 challenge: 32 bytes, base64url without padding.
+  @Nullable
+  private static String validRelayChallenge(@Nullable String challenge) {
+    if (challenge == null || !challenge.matches("[A-Za-z0-9_-]{43}")) {
+      return null;
+    }
+    return challenge;
+  }
+
+  // The app keeps the verifier and sends only its hash through the browser, so a leaked sign-in
+  // URL does not allow relaying. Sessions without a challenge can never be relayed.
+  private static boolean matchesRelayChallenge(
+      @Nullable String challenge, @Nullable String verifier) {
+    if (challenge == null || verifier == null || !verifier.matches("[A-Za-z0-9_-]{43,128}")) {
+      return false;
+    }
+    return MessageDigest.isEqual(
+        challenge.getBytes(StandardCharsets.US_ASCII),
+        calculateS256CodeChallenge(verifier).getBytes(StandardCharsets.US_ASCII));
   }
 
   @Nullable
@@ -313,15 +336,32 @@ public class AuthService {
 
   public record CallbackRequest(String sessionId, String code) {}
 
-  public record RelayRequest(String upstreamState, String code) {}
+  public record RelayRequest(String upstreamState, String code, String appRelayVerifier) {}
 
+  /**
+   * @param appRelayChallenge S256 hash of a secret held by the native app that started this sign-in
+   *     (forwarded by the broker). Only the holder of that secret may relay a callback for this
+   *     session; without it the relay is refused.
+   */
   public record AuthorizationRequest(
       String scope,
       String state,
       String responseType,
       String clientId,
       URI redirectUri,
-      String nonce) {}
+      String nonce,
+      String appRelayChallenge) {
+
+    public AuthorizationRequest(
+        String scope,
+        String state,
+        String responseType,
+        String clientId,
+        URI redirectUri,
+        String nonce) {
+      this(scope, state, responseType, clientId, redirectUri, nonce, null);
+    }
+  }
 
   public record AuthorizationResponse(List<IdpEntry> identityProviders, String sessionId) {}
 }

@@ -42,7 +42,7 @@ class AuthEndpointTest {
     // when & then
     assertThrows(
         ValidationException.class,
-        () -> sut.auth(scope, state, responseType, clientId, REDIRECT_URI, nonce, language));
+        () -> sut.auth(scope, state, responseType, clientId, REDIRECT_URI, nonce, null, language));
   }
 
   @Test
@@ -61,7 +61,8 @@ class AuthEndpointTest {
     var language = "de-DE";
 
     // when
-    try (var res = sut.auth(scope, state, responseType, clientId, REDIRECT_URI, nonce, language)) {
+    try (var res =
+        sut.auth(scope, state, responseType, clientId, REDIRECT_URI, nonce, null, language)) {
 
       // then
       var captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
@@ -93,7 +94,8 @@ class AuthEndpointTest {
     var language = "de-DE";
 
     // when
-    try (var res = sut.auth(scope, state, responseType, clientId, REDIRECT_URI, nonce, language)) {
+    try (var res =
+        sut.auth(scope, state, responseType, clientId, REDIRECT_URI, nonce, null, language)) {
 
       // then
       assertEquals(Status.OK.getStatusCode(), res.getStatus());

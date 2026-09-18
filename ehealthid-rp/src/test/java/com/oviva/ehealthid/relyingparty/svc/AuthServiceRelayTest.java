@@ -26,6 +26,9 @@ class AuthServiceRelayTest {
   private static final URI BASE_URI = URI.create("https://idp.example.com");
   private static final URI REDIRECT_URI = URI.create("https://myapp.example.com");
   private static final String UPSTREAM_STATE = "upstream-state-0123456789abcdef0123456789abc";
+  // APP_CHALLENGE = BASE64URL(SHA256(APP_VERIFIER)), as for PKCE S256.
+  private static final String APP_VERIFIER = "relay-verifier-0123456789abcdefghijklmnopqrs";
+  private static final String APP_CHALLENGE = "Hrs_ghO0hKfe2uEqJOUaFLr-rBFottVWVO-EZjh9tW4";
 
   private final CaffeineSessionRepo sessionRepo =
       new CaffeineSessionRepo(
@@ -48,7 +51,12 @@ class AuthServiceRelayTest {
             .codeVerifier("verifier")
             .trustedSectoralIdpStep(trustedStep)
             .upstreamState(UPSTREAM_STATE)
+            .appRelayChallenge(APP_CHALLENGE)
             .build());
+  }
+
+  private static RelayRequest relay(String state, String code) {
+    return new RelayRequest(state, code, APP_VERIFIER);
   }
 
   @Test
@@ -87,7 +95,7 @@ class AuthServiceRelayTest {
     assertEquals("sid", sut.findRelayableSessionId(UPSTREAM_STATE));
     assertFalse(sut.isRelayComplete("sid"));
 
-    sut.relayCallback(new RelayRequest(UPSTREAM_STATE, "code"));
+    sut.relayCallback(relay(UPSTREAM_STATE, "code"));
 
     assertTrue(sut.isRelayComplete("sid"));
     assertFalse(sut.isRelayComplete("other"));
@@ -109,21 +117,69 @@ class AuthServiceRelayTest {
     when(trustedStep.exchangeSectoralIdpCode("code", "verifier")).thenReturn(idToken);
     var sut = sut();
 
-    assertThrows(
-        ValidationException.class, () -> sut.relayCallback(new RelayRequest("wrong", "code")));
-    assertThrows(
-        ValidationException.class, () -> sut.relayCallback(new RelayRequest(null, "code")));
-    assertThrows(
-        ValidationException.class, () -> sut.relayCallback(new RelayRequest(UPSTREAM_STATE, " ")));
-    assertThrows(
-        ValidationException.class, () -> sut.relayCallback(new RelayRequest(UPSTREAM_STATE, null)));
+    assertThrows(ValidationException.class, () -> sut.relayCallback(relay("wrong", "code")));
+    assertThrows(ValidationException.class, () -> sut.relayCallback(relay(null, "code")));
+    assertThrows(ValidationException.class, () -> sut.relayCallback(relay(UPSTREAM_STATE, " ")));
+    assertThrows(ValidationException.class, () -> sut.relayCallback(relay(UPSTREAM_STATE, null)));
     verifyNoInteractions(trustedStep);
 
-    sut.relayCallback(new RelayRequest(UPSTREAM_STATE, "code"));
-    assertThrows(
-        ValidationException.class,
-        () -> sut.relayCallback(new RelayRequest(UPSTREAM_STATE, "code")));
+    sut.relayCallback(relay(UPSTREAM_STATE, "code"));
+    assertThrows(ValidationException.class, () -> sut.relayCallback(relay(UPSTREAM_STATE, "code")));
     verify(trustedStep, times(1)).exchangeSectoralIdpCode(any(), any());
+  }
+
+  @Test
+  void relay_requiresTheVerifierOfTheAppThatStartedTheSignIn() {
+    saveAwaitingSession("sid");
+    var sut = sut();
+
+    for (var verifier :
+        new String[] {
+          null, "", APP_CHALLENGE, "relay-verifier-0123456789abcdefghijklmnopqrt", "a b"
+        }) {
+      assertThrows(
+          ValidationException.class,
+          () -> sut.relayCallback(new RelayRequest(UPSTREAM_STATE, "code", verifier)),
+          String.valueOf(verifier));
+    }
+    verifyNoInteractions(trustedStep);
+    assertEquals("sid", sut.findRelayableSessionId(UPSTREAM_STATE), "still awaiting relay");
+  }
+
+  @Test
+  void relay_isRefusedForSessionsStartedWithoutAppChallenge() {
+    sessionRepo.save(
+        Session.create()
+            .id("sid")
+            .codeVerifier("verifier")
+            .trustedSectoralIdpStep(trustedStep)
+            .upstreamState(UPSTREAM_STATE)
+            .build());
+    var sut = sut();
+
+    assertThrows(ValidationException.class, () -> sut.relayCallback(relay(UPSTREAM_STATE, "code")));
+    verifyNoInteractions(trustedStep);
+  }
+
+  @Test
+  void auth_keepsOnlyWellFormedAppChallenge() {
+    var flow = mock(AuthenticationFlow.class);
+    var step1 = mock(SelectSectoralIdpStep.class);
+    when(flow.start(any())).thenReturn(step1);
+    when(step1.fetchIdpOptions()).thenReturn(List.of());
+    var fed = FederationConfig.create().scopes(List.of("openid")).build();
+    var repo = mock(SessionRepo.class);
+    var config = new RelyingPartyConfig(List.of("code"), List.of(REDIRECT_URI));
+    var sut = new AuthService(BASE_URI, config, fed, repo, null, flow);
+
+    sut.auth(
+        new AuthorizationRequest("openid", "s", "code", "c", REDIRECT_URI, "n", APP_CHALLENGE));
+    sut.auth(new AuthorizationRequest("openid", "s", "code", "c", REDIRECT_URI, "n", "short"));
+
+    var saved = ArgumentCaptor.forClass(Session.class);
+    verify(repo, times(2)).save(saved.capture());
+    assertEquals(APP_CHALLENGE, saved.getAllValues().get(0).appRelayChallenge());
+    assertNull(saved.getAllValues().get(1).appRelayChallenge());
   }
 
   @Test
@@ -132,9 +188,7 @@ class AuthServiceRelayTest {
     var sut = sut();
 
     assertNull(sut.findRelayableSessionId(UPSTREAM_STATE));
-    assertThrows(
-        ValidationException.class,
-        () -> sut.relayCallback(new RelayRequest(UPSTREAM_STATE, "code")));
+    assertThrows(ValidationException.class, () -> sut.relayCallback(relay(UPSTREAM_STATE, "code")));
   }
 
   @Test
@@ -144,8 +198,7 @@ class AuthServiceRelayTest {
         .thenThrow(new RuntimeException("rejected"));
     var sut = sut();
 
-    assertThrows(
-        RuntimeException.class, () -> sut.relayCallback(new RelayRequest(UPSTREAM_STATE, "code")));
+    assertThrows(RuntimeException.class, () -> sut.relayCallback(relay(UPSTREAM_STATE, "code")));
     assertFalse(sut.isRelayComplete("sid"));
     assertThrows(ValidationException.class, () -> sut.continueRelayed("sid"));
   }

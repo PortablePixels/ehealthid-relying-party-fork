@@ -37,7 +37,8 @@ public interface SessionRepo {
       SelectSectoralIdpStep selectSectoralIdpStep,
       TrustedSectoralIdpStep trustedSectoralIdpStep,
       String upstreamState,
-      IdTokenJWS relayedIdToken) {
+      IdTokenJWS relayedIdToken,
+      String appRelayChallenge) {
 
     public Session(
         String id,
@@ -60,6 +61,7 @@ public interface SessionRepo {
           selectSectoralIdpStep,
           trustedSectoralIdpStep,
           null,
+          null,
           null);
     }
 
@@ -79,7 +81,8 @@ public interface SessionRepo {
           .selectSectoralIdpStep(selectSectoralIdpStep)
           .trustedSectoralIdpStep(trustedSectoralIdpStep)
           .upstreamState(upstreamState)
-          .relayedIdToken(relayedIdToken);
+          .relayedIdToken(relayedIdToken)
+          .appRelayChallenge(appRelayChallenge);
     }
 
     public static final class Builder {
@@ -95,6 +98,7 @@ public interface SessionRepo {
       private TrustedSectoralIdpStep trustedSectoralIdpStep;
       private String upstreamState;
       private IdTokenJWS relayedIdToken;
+      private String appRelayChallenge;
 
       private Builder() {}
 
@@ -153,6 +157,11 @@ public interface SessionRepo {
         return this;
       }
 
+      public Builder appRelayChallenge(String appRelayChallenge) {
+        this.appRelayChallenge = appRelayChallenge;
+        return this;
+      }
+
       public Session build() {
         if (id == null) {
           id = IdGenerator.generateID();
@@ -173,7 +182,8 @@ public interface SessionRepo {
             selectSectoralIdpStep,
             trustedSectoralIdpStep,
             upstreamState,
-            relayedIdToken);
+            relayedIdToken,
+            appRelayChallenge);
       }
     }
   }

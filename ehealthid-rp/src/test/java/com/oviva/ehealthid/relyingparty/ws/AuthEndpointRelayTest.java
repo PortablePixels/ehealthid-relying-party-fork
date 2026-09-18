@@ -5,11 +5,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.oviva.ehealthid.relyingparty.svc.AuthService;
+import com.oviva.ehealthid.relyingparty.svc.AuthService.AuthorizationRequest;
+import com.oviva.ehealthid.relyingparty.svc.AuthService.AuthorizationResponse;
 import com.oviva.ehealthid.relyingparty.svc.AuthService.CallbackRequest;
 import com.oviva.ehealthid.relyingparty.svc.AuthService.RelayRequest;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response.Status;
 import java.net.URI;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -79,7 +82,7 @@ class AuthEndpointRelayTest {
     verify(authService).callback(new CallbackRequest(null, "code"));
     verify(authService, never()).findRelayableSessionId(any());
 
-    try (var res = sut.relay("up", "code")) {
+    try (var res = sut.relay("up", "code", "verifier")) {
       assertEquals(Status.NOT_FOUND.getStatusCode(), res.getStatus());
     }
     try (var res = sut.relayStatus("sid")) {
@@ -109,11 +112,11 @@ class AuthEndpointRelayTest {
   @Test
   void relay_passesStateAndCode() {
     var sut = new AuthEndpoint(authService, null, RELAY_URI);
-    try (var res = sut.relay("up", "code")) {
+    try (var res = sut.relay("up", "code", "verifier")) {
       assertEquals(Status.NO_CONTENT.getStatusCode(), res.getStatus());
       assertNull(res.getHeaderString(HttpHeaders.SET_COOKIE));
     }
-    verify(authService).relayCallback(new RelayRequest("up", "code"));
+    verify(authService).relayCallback(new RelayRequest("up", "code", "verifier"));
   }
 
   @Test
@@ -144,6 +147,28 @@ class AuthEndpointRelayTest {
     try (var res = new AuthEndpoint(authService, null).postSelectIdp("s", "i", "de")) {
       assertFalse(((String) res.getEntity()).contains("/auth/relay-status"));
     }
+  }
+
+  @Test
+  void auth_forwardsAppRelayChallengeOnlyWhenRelayEnabled() {
+    when(authService.auth(any())).thenReturn(new AuthorizationResponse(List.of(), "sid"));
+    var redirect = "https://iam.example.com/broker/cb";
+    var captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
+
+    try (var res =
+        new AuthEndpoint(authService, null, RELAY_URI)
+            .auth("openid", "s", "code", "c", redirect, "n", "challenge", "de-DE")) {
+      assertEquals(Status.OK.getStatusCode(), res.getStatus());
+    }
+    try (var res =
+        new AuthEndpoint(authService, null)
+            .auth("openid", "s", "code", "c", redirect, "n", "challenge", "de-DE")) {
+      assertEquals(Status.OK.getStatusCode(), res.getStatus());
+    }
+
+    verify(authService, times(2)).auth(captor.capture());
+    assertEquals("challenge", captor.getAllValues().get(0).appRelayChallenge());
+    assertNull(captor.getAllValues().get(1).appRelayChallenge());
   }
 
   // mustache.java escapes attribute values numerically; browsers decode them the same way.

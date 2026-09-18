@@ -68,13 +68,21 @@ public class AuthEndpoint {
       @QueryParam("client_id") String clientId,
       @QueryParam("redirect_uri") String redirectUri,
       @QueryParam("nonce") String nonce,
+      @QueryParam("app_relay_challenge") String appRelayChallenge,
       @HeaderParam("Accept-Language") @DefaultValue("de-DE") String acceptLanguage) {
 
     var uri = mustParse(redirectUri);
 
     var res =
         authService.auth(
-            new AuthorizationRequest(scope, state, responseType, clientId, uri, nonce));
+            new AuthorizationRequest(
+                scope,
+                state,
+                responseType,
+                clientId,
+                uri,
+                nonce,
+                appRelayUri != null ? appRelayChallenge : null));
 
     var locale = getNegotiatedLocale(acceptLanguage);
     var form = pages.selectIdpForm(res.identityProviders(), appUri, locale);
@@ -167,11 +175,14 @@ public class AuthEndpoint {
   @POST
   @Path("/relay")
   @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
-  public Response relay(@FormParam("state") String state, @FormParam("code") String code) {
+  public Response relay(
+      @FormParam("state") String state,
+      @FormParam("code") String code,
+      @FormParam("verifier") String verifier) {
     if (appRelayUri == null) {
       return Response.status(Status.NOT_FOUND).build();
     }
-    authService.relayCallback(new RelayRequest(state, code));
+    authService.relayCallback(new RelayRequest(state, code, verifier));
     return noStore(Response.noContent()).build();
   }
 
