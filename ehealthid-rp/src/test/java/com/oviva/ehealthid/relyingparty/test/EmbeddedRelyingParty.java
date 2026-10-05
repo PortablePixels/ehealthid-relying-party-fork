@@ -16,8 +16,21 @@ import java.util.concurrent.ExecutionException;
 public class EmbeddedRelyingParty implements AutoCloseable {
 
   private static final String DISCOVERY_PATH = "/.well-known/openid-configuration";
+  private final String extraProperties;
   private Main application;
   private WireMockServer wireMockServer;
+
+  public EmbeddedRelyingParty() {
+    this("");
+  }
+
+  /**
+   * @param extraProperties additional configuration in properties format, e.g. {@code
+   *     app_relay_uri=...}
+   */
+  public EmbeddedRelyingParty(String extraProperties) {
+    this.extraProperties = extraProperties;
+  }
 
   public URI start() throws ExecutionException, InterruptedException {
 
@@ -43,8 +56,9 @@ public class EmbeddedRelyingParty implements AutoCloseable {
                 app_name=Awesome DiGA
                 port=0
                 management_port=0
+                %s
                 """
-                .formatted(wireMockServer.baseUrl(), discoveryUri, redirectUri));
+                .formatted(wireMockServer.baseUrl(), discoveryUri, redirectUri, extraProperties));
 
     this.application = new Main(config);
 

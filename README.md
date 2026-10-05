@@ -159,6 +159,7 @@ Use environment variables to configure the relying party server.
 | `EHEALTHID_RP_CODE_STORE_MAX_ENTRIES`        | The maximum number of codes to store. Keeps memory bounded.                                                                                                                | `1000`                                                            |
 | `EHEALTHID_RP_LOG_LEVEL`                     | The log level.                                                                                                                                                             | `INFO`                                                            |
 | `EHEALTHID_RP_OPENID_PROVIDER_SIG_JWKS_PATH` | Path to a JWKS with signing keys for our openIdProvider, for example the id_token issued by the relying party will be signed with it. Will be generated if not configured. | `./openid_provider_sig_jwks.json`                                 |
+| `EHEALTHID_RP_APP_RELAY_URI`                 | Native app link that receives a sectoral IdP callback which opened in another browser than the sign-in session. Enables `POST /auth/relay`; unset keeps the plain cookie-bound callback. | `diga.staging.smokefreeapp://healthid_return`                     |
 
 # Generate Keys & Register for Federation
 
