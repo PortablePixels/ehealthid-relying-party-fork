@@ -218,7 +218,8 @@ class AuthServiceRelayTest {
         "no session awaiting a relay for this state", AuthService.relayRefusal(null, APP_VERIFIER));
     assertEquals(
         "session has no app relay challenge",
-        AuthService.relayRefusal(awaiting.toBuilder().appRelayChallenge(null).build(), APP_VERIFIER));
+        AuthService.relayRefusal(
+            awaiting.toBuilder().appRelayChallenge(null).build(), APP_VERIFIER));
     assertEquals(
         "verifier does not match the session's app relay challenge",
         AuthService.relayRefusal(awaiting, APP_VERIFIER.replace('r', 'x')));
