@@ -18,8 +18,12 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class AuthService {
+
+  private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
 
   private final URI baseUri;
   private final RelyingPartyConfig relyingPartyConfig;
@@ -180,8 +184,10 @@ public class AuthService {
       throw new ValidationException(new Message("error.invalidCallback"));
     }
     var session = findAwaitingRelay(request.upstreamState());
-    if (session == null
-        || !matchesRelayChallenge(session.appRelayChallenge(), request.appRelayVerifier())) {
+    var refusal = relayRefusal(session, request.appRelayVerifier());
+    if (refusal != null) {
+      // The 400 alone does not say which check failed; only the reason is logged, never a value.
+      logger.warn("relay refused: {}", refusal);
       throw new ValidationException(new Message("error.invalidSession"));
     }
 
@@ -228,6 +234,20 @@ public class AuthService {
       return null;
     }
     return challenge;
+  }
+
+  @Nullable
+  static String relayRefusal(@Nullable Session session, @Nullable String verifier) {
+    if (session == null) {
+      return "no session awaiting a relay for this state";
+    }
+    if (session.appRelayChallenge() == null) {
+      return "session has no app relay challenge";
+    }
+    if (!matchesRelayChallenge(session.appRelayChallenge(), verifier)) {
+      return "verifier does not match the session's app relay challenge";
+    }
+    return null;
   }
 
   // The app keeps the verifier and sends only its hash through the browser, so a leaked sign-in
