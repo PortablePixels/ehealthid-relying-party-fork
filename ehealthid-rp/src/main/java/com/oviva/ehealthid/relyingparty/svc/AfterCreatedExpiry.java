@@ -11,11 +11,11 @@ public record AfterCreatedExpiry<T>(long timeToLiveNanos) implements Expiry<Stri
 
   @Override
   public long expireAfterUpdate(String key, T value, long currentTime, long currentDuration) {
-    return timeToLiveNanos - currentDuration;
+    return currentDuration;
   }
 
   @Override
   public long expireAfterRead(String key, T value, long currentTime, long currentDuration) {
-    return timeToLiveNanos - currentDuration;
+    return currentDuration;
   }
 }

@@ -103,6 +103,12 @@ class AuthEndpointTest {
 
       var sessionCookie = res.getCookies().get("session_id");
       assertEquals(sessionId, sessionCookie.getValue());
+      assertEquals(600, sessionCookie.getMaxAge());
+      assertEquals("/auth", sessionCookie.getPath());
+      assertNull(sessionCookie.getDomain());
+      assertTrue(sessionCookie.isSecure());
+      assertTrue(sessionCookie.isHttpOnly());
+      assertEquals(jakarta.ws.rs.core.NewCookie.SameSite.LAX, sessionCookie.getSameSite());
 
       var page = (String) res.getEntity();
       assertTrue(page.contains(APP_URI.toString()));
