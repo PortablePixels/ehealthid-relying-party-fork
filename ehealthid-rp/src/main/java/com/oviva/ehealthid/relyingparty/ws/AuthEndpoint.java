@@ -32,29 +32,45 @@ import jakarta.ws.rs.core.Response.Status;
 import jakarta.ws.rs.core.UriBuilder;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Duration;
 import java.util.List;
 
 @Path("/auth")
 public class AuthEndpoint {
   private final Pages pages = new Pages(new TemplateRenderer());
 
+  // matches the session_store_ttl default in ConfigReader
+  static final Duration DEFAULT_SESSION_TTL = Duration.ofMinutes(20);
+
   private final AuthService authService;
   private final URI appUri;
   private final URI appRelayUri;
+  private final Duration sessionTtl;
 
   public AuthEndpoint(AuthService authService, @Nullable URI appUri) {
     this(authService, appUri, null);
+  }
+
+  public AuthEndpoint(AuthService authService, @Nullable URI appUri, @Nullable URI appRelayUri) {
+    this(authService, appUri, appRelayUri, DEFAULT_SESSION_TTL);
   }
 
   /**
    * @param appRelayUri native app link that receives a sectoral IdP callback which reached another
    *     browser than the sign-in session (e.g. the insurer app opened Safari). Null disables the
    *     relay and keeps the plain cookie-bound callback.
+   * @param sessionTtl lifetime of the server-side session; the session cookie lives exactly as
+   *     long, so a sign-in that is still valid on the server never loses its cookie first.
    */
-  public AuthEndpoint(AuthService authService, @Nullable URI appUri, @Nullable URI appRelayUri) {
+  public AuthEndpoint(
+      AuthService authService,
+      @Nullable URI appUri,
+      @Nullable URI appRelayUri,
+      Duration sessionTtl) {
     this.authService = authService;
     this.appUri = appUri;
     this.appRelayUri = appRelayUri;
+    this.sessionTtl = sessionTtl;
   }
 
   // Authorization Request
@@ -112,7 +128,7 @@ public class AuthEndpoint {
         .secure(true)
         .httpOnly(true)
         .sameSite(SameSite.LAX)
-        .maxAge(-1) // session scoped
+        .maxAge(Math.toIntExact(sessionTtl.toSeconds())) // same window as the server session
         .path("/auth")
         .build();
   }

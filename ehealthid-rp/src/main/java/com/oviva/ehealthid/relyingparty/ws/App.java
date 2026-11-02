@@ -56,7 +56,8 @@ public class App extends Application {
             new FederationEndpoint(
                 config.federation(),
                 new FederationKeysAdapter(config.federation().sub(), keyStores)),
-            new AuthEndpoint(authService, config.appUri(), config.appRelayUri()),
+            new AuthEndpoint(
+                authService, config.appUri(), config.appRelayUri(), config.sessionStore().ttl()),
             new TokenEndpoint(tokenIssuer, clientAuthenticator),
             new OpenIdEndpoint(config.baseUri(), config.relyingParty(), openIdProviderSigningKeys),
             new ThrowableExceptionMapper(config.appUri()),

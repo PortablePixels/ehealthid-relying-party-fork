@@ -15,6 +15,7 @@ import com.oviva.ehealthid.relyingparty.util.IdGenerator;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response.Status;
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -79,6 +80,30 @@ class AuthEndpointTest {
   }
 
   @Test
+  void auth_sessionCookieFollowsConfiguredSessionTtl() {
+
+    var sessionId = IdGenerator.generateID();
+    var authService = mock(AuthService.class);
+    when(authService.auth(any())).thenReturn(new AuthorizationResponse(List.of(), sessionId));
+    var sut = new AuthEndpoint(authService, APP_URI, null, Duration.ofMinutes(45));
+
+    try (var res =
+        sut.auth(
+            "openid",
+            UUID.randomUUID().toString(),
+            "code",
+            "myapp",
+            REDIRECT_URI,
+            UUID.randomUUID().toString(),
+            null,
+            "de-DE")) {
+
+      var sessionCookie = res.getCookies().get("session_id");
+      assertEquals(45 * 60, sessionCookie.getMaxAge());
+    }
+  }
+
+  @Test
   void auth_success() {
 
     var sessionId = IdGenerator.generateID();
@@ -103,6 +128,12 @@ class AuthEndpointTest {
 
       var sessionCookie = res.getCookies().get("session_id");
       assertEquals(sessionId, sessionCookie.getValue());
+      assertEquals(20 * 60, sessionCookie.getMaxAge());
+      assertEquals("/auth", sessionCookie.getPath());
+      assertNull(sessionCookie.getDomain());
+      assertTrue(sessionCookie.isSecure());
+      assertTrue(sessionCookie.isHttpOnly());
+      assertEquals(jakarta.ws.rs.core.NewCookie.SameSite.LAX, sessionCookie.getSameSite());
 
       var page = (String) res.getEntity();
       assertTrue(page.contains(APP_URI.toString()));
